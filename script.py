@@ -1,31 +1,48 @@
+import os
 import logging
 import re
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
-# Налаштування логування
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
-TOKEN = '8473734736:AAGSNU9MaiUorcOZw6zJM13OEyzpZV-jhrg'  # Заміни на свій токен
+# Токен з Render Environment Variables!
+TOKEN = os.getenv('TOKEN')
+if not TOKEN:
+    print("ПОМИЛКА: Додай TOKEN в Render Environment Variables!")
+    exit(1)
 
-# Regex для ключових слів (толерантно до i/I, регістру)
+TRANSLIT_MAP = {
+    'р': 'r', 'у': 'u', 'п': 'p', 'і': 'i', 'ч': 'ch',
+    'з': 'z', 'я': 'ya', 'н': 'n', 'а': 'a',
+    'ф': 'f', 'н': 'n', 'у': 'u', 'к': 'k'
+}
+
+def normalize(text):
+    norm = text.lower()
+    for cyr, lat in TRANSLIT_MAP.items():
+        norm = norm.replace(cyr, lat)
+    return norm
+
 RESPONSES = {
-    r'[р][у][п][іі][ч]': 'РУПІЧ ЧМО!',     # "рупіч" / "rupich"
-    r'[р][у][п][іі][з][я][н][а]': 'РУПІЧ ЧМО!',  # "рупізяна"
-    r'[ф][р][а][н][ч][у][к]': 'У Віті великій пеніc'  # "франчук"
+    'rupich': 'РУПІЧ ЧМО!',
+    'rupiziana': 'РУПІЧ ЧМО!',
+    'franchuk': 'У Віті великій пеніс'
 }
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text:
-        text = update.message.text
-        for pattern, response in RESPONSES.items():
-            if re.search(pattern, text, re.IGNORECASE):
+        norm_text = normalize(update.message.text)
+        for keyword, response in RESPONSES.items():
+            if keyword in norm_text:
                 await update.message.reply_text(response)
                 return
 
 def main():
+    print("Startup..")
     app = Application.builder().token(TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    print("Рупіч готовий їбашить")
     app.run_polling()
 
 if __name__ == '__main__':
